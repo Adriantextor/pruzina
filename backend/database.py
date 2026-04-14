@@ -1,14 +1,21 @@
-from sqlalchemy import create_engine, Column, String, Float, Integer, Timestamp, Text, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import (
+    create_engine, Column, String, Float, Integer, DateTime, Text, ForeignKey
+)
+from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 from datetime import datetime
 import os
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./spring_simulator.db")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 class ConfigurationDB(Base):
@@ -27,8 +34,8 @@ class ConfigurationDB(Base):
     frequency = Column(Float, nullable=True)
     damping_type = Column(String(20), nullable=True)
     damping_ratio = Column(Float, nullable=True)
-    created_at = Column(Timestamp, default=datetime.utcnow)
-    updated_at = Column(Timestamp, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class SimulationDB(Base):
@@ -38,8 +45,8 @@ class SimulationDB(Base):
     config_id = Column(String(50), ForeignKey("configurations.id"), nullable=False)
     status = Column(String(20), nullable=False, default="running")
     duration = Column(Float, nullable=False)
-    started_at = Column(Timestamp, default=datetime.utcnow)
-    completed_at = Column(Timestamp, nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
     total_steps = Column(Integer, nullable=True)
     final_displacement = Column(Float, nullable=True)
     final_velocity = Column(Float, nullable=True)
