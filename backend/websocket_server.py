@@ -9,7 +9,7 @@ from simulation import simulate
 from models import compute_characteristics
 
 WS_HOST = "0.0.0.0"
-WS_PORT = 9000
+WS_PORT = 9001
 SEND_INTERVAL = 0.05          # 50ms → 20 FPS
 STEPS_PER_FRAME = None        # computed dynamically
 
