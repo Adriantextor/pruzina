@@ -43,8 +43,6 @@ def analytical_step(t: float, x0: float, mass: float, stiffness: float, damping:
 
     omega_d = omega0 * math.sqrt(1 - zeta ** 2)
     A = x0
-    phi = 0.0  # v0 = 0
-
     decay = math.exp(-zeta * omega0 * t)
     x = decay * (A * math.cos(omega_d * t) + (zeta * omega0 * A / omega_d) * math.sin(omega_d * t))
     v = (decay * (-zeta * omega0) * (A * math.cos(omega_d * t) + (zeta * omega0 * A / omega_d) * math.sin(omega_d * t))
