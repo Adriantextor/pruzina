@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulátor pružiny — Konfigurácie</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222636;
+      --border: #2e3347;
+      --accent: #4f7cff;
+      --accent-hover: #3d6be8;
+      --danger: #e05c5c;
+      --danger-hover: #c94a4a;
+      --success: #3ecf8e;
+      --warning: #f5a623;
+      --text: #e8eaf0;
+      --text-muted: #7a8099;
+      --radius: 10px;
+      --font: 'Segoe UI', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 600; }
+    header span { color: var(--text-muted); font-size: 0.9rem; }
+    .header-status { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-muted); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+    .dot.off { background: var(--danger); }
+
+    .layout { display: grid; grid-template-columns: 380px 1fr; gap: 24px; padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+    .panel h2 { font-size: 1rem; font-weight: 600; margin-bottom: 20px; color: var(--text); }
+
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    input, select, textarea {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); padding: 10px 12px; font-size: 0.9rem;
+      font-family: var(--font); outline: none; transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 60px; }
+    select option { background: var(--surface2); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .characteristics {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 16px; margin-top: 16px; display: none;
+    }
+    .characteristics.visible { display: block; }
+    .characteristics h3 { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+    .char-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .char-item .val { font-size: 1rem; font-weight: 600; color: var(--accent); }
+    .char-item .lbl { font-size: 0.75rem; color: var(--text-muted); }
+    .damping-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-top: 8px; }
+    .damping-underdamped { background: rgba(79,124,255,0.15); color: #6e95ff; }
+    .damping-overdamped  { background: rgba(224,92,92,0.15);  color: #e87a7a; }
+    .damping-critical    { background: rgba(245,166,35,0.15);  color: #f7bb55; }
+    .damping-undamped    { background: rgba(62,207,142,0.15);  color: #5de0a3; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 18px; border-radius: 6px; border: none;
+      font-size: 0.875rem; font-weight: 500; cursor: pointer;
+      font-family: var(--font); transition: background 0.15s, transform 0.05s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-danger:hover  { background: var(--danger-hover); }
+    .btn-ghost   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover   { background: var(--border); }
+    .btn-success { background: var(--success); color: #0a2a1c; }
+    .btn-success:hover { background: #35b87a; }
+    .btn-sm  { padding: 6px 12px; font-size: 0.8rem; }
+    .btn-full { width: 100%; justify-content: center; }
+
+    .filters { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .filters select { width: auto; flex: 1; min-width: 120px; }
+
+    .config-list { display: flex; flex-direction: column; gap: 12px; }
+    .config-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px; transition: border-color 0.15s;
+    }
+    .config-card:hover { border-color: var(--accent); }
+    .config-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .config-name { font-weight: 600; font-size: 0.95rem; }
+    .config-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+    .config-params { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+    .param-box { background: var(--bg); border-radius: 6px; padding: 8px 10px; text-align: center; }
+    .param-box .pval { font-size: 0.95rem; font-weight: 600; }
+    .param-box .plbl { font-size: 0.7rem; color: var(--text-muted); }
+    .config-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+    .meta-text { font-size: 0.78rem; color: var(--text-muted); }
+    .config-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .empty { text-align: center; padding: 48px 16px; color: var(--text-muted); }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .empty p { font-size: 0.9rem; }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: none; align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px; width: 480px; max-width: 95vw;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal h2 { margin-bottom: 20px; font-size: 1.1rem; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+    .toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
+    .toast {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 18px; font-size: 0.875rem;
+      animation: slideIn 0.2s ease; max-width: 320px;
+    }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error   { border-left: 3px solid var(--danger); }
+    .toast.info    { border-left: 3px solid var(--accent); }
+    @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    .history-section { grid-column: 1 / -1; }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .history-table th { text-align: left; padding: 8px 12px; color: var(--text-muted); font-weight: 500; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
+    .history-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .history-table tr:last-child td { border-bottom: none; }
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .status-completed { background: rgba(62,207,142,0.15);  color: var(--success); }
+    .status-running   { background: rgba(79,124,255,0.15);  color: var(--accent);  }
+    .status-stopped   { background: rgba(224,92,92,0.15);   color: var(--danger);  }
+    .status-pending   { background: rgba(245,166,35,0.15);  color: var(--warning); }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; padding: 16px; }
+      .history-section { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <line x1="14" y1="2" x2="14" y2="5" stroke="#4f7cff" stroke-width="2" stroke-linecap="round"/>
+    <path d="M11 5 Q17 7 11 10 Q17 13 11 16 Q17 19 11 22" stroke="#4f7cff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <circle cx="14" cy="24" r="3" fill="#4f7cff" opacity="0.5" stroke="#4f7cff" stroke-width="1.5"/>
+  </svg>
+  <h1>Simulátor pružiny</h1>
+  <span>— správa konfigurácií</span>
+  <div class="header-status">
+    <div class="dot off" id="apiDot"></div>
+    <span id="apiStatus">Pripájam...</span>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- LEFT: FORM -->
+  <div>
+    <div class="panel">
+      <h2 id="formTitle">Nová konfigurácia</h2>
+
+      <div class="form-group">
+        <label>Názov *</label>
+        <input type="text" id="fName" placeholder="napr. Slabo tlmený systém" />
+      </div>
+      <div class="form-group">
+        <label>Popis</label>
+        <textarea id="fDesc" placeholder="Voliteľný popis..."></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Hmotnosť [kg]</label>
+          <input type="number" id="fMass" value="1.0" min="0.001" step="0.1" />
+        </div>
+        <div class="form-group">
+          <label>Tuhost [N/m]</label>
+          <input type="number" id="fStiffness" value="10.0" min="0.001" step="1" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tlmenie [kg/s]</label>
+          <input type="number" id="fDamping" value="0.5" min="0" step="0.1" />
+        </div>
+        <div class="form-group">
+          <label>Výchylka [m]</label>
+          <input type="number" id="fDisplacement" value="0.5" step="0.1" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Časový krok [s]</label>
+          <input type="number" id="fTimeStep" value="0.01" min="0.001" max="0.1" step="0.001" />
+        </div>
+        <div class="form-group">
+          <label>Numerická metóda</label>
+          <select id="fMethod">
+            <option value="runge_kutta_4">Runge-Kutta 4</option>
+            <option value="runge_kutta_2">Runge-Kutta 2</option>
+            <option value="euler">Euler</option>
+            <option value="analytical">Analytická</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="characteristics" id="charBox">
+        <h3>Vypočítané charakteristiky</h3>
+        <div class="char-grid">
+          <div class="char-item"><div class="val" id="cPeriod">—</div><div class="lbl">Perióda [s]</div></div>
+          <div class="char-item"><div class="val" id="cFreq">—</div><div class="lbl">Frekvencia [Hz]</div></div>
+          <div class="char-item"><div class="val" id="cOmega">—</div><div class="lbl">ω₀ [rad/s]</div></div>
+          <div class="char-item"><div class="val" id="cZeta">—</div><div class="lbl">ζ (tlmenie)</div></div>
+        </div>
+        <div id="cDampingBadge"></div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button class="btn btn-primary btn-full" onclick="saveConfig()">
+          <span id="saveBtnText">Uložiť konfiguráciu</span>
+        </button>
+        <button class="btn btn-ghost" onclick="cancelEdit()" id="cancelBtn" style="display:none;">Zrušiť</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: LIST -->
+  <div>
+    <div class="panel">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <h2 style="margin:0;">Konfigurácie</h2>
+        <button class="btn btn-ghost btn-sm" onclick="loadConfigs()">↻ Obnoviť</button>
+      </div>
+      <div class="filters">
+        <select id="filterDamping" onchange="loadConfigs()">
+          <option value="">Všetky typy tlmenia</option>
+          <option value="undamped">Netlmený</option>
+          <option value="underdamped">Podtlmený</option>
+          <option value="critical">Kritický</option>
+          <option value="overdamped">Pretlmený</option>
+        </select>
+        <select id="filterMethod" onchange="loadConfigs()">
+          <option value="">Všetky metódy</option>
+          <option value="runge_kutta_4">RK4</option>
+          <option value="runge_kutta_2">RK2</option>
+          <option value="euler">Euler</option>
+          <option value="analytical">Analytická</option>
+        </select>
+        <select id="sortBy" onchange="renderConfigs(allConfigs)">
+          <option value="created">Podľa dátumu</option>
+          <option value="name">Podľa názvu</option>
+          <option value="runs">Podľa spustení</option>
+        </select>
+      </div>
+      <div class="config-list" id="configList">
+        <div class="empty"><div class="empty-icon">🔄</div><p>Načítavam...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="panel history-section">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+      <h2 style="margin:0;">História simulácií</h2>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <select id="historyFilter" onchange="loadHistory()" style="width:auto; min-width:180px;">
+          <option value="">Všetky konfigurácie</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadHistory()">↻ Obnoviť</button>
+      </div>
+    </div>
+    <div id="historyContainer">
+      <div class="empty"><div class="empty-icon">📊</div><p>Zatiaľ žiadne simulácie</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- SIMULATE MODAL -->
+<div class="modal-overlay" id="simModal">
+  <div class="modal">
+    <h2>Spustiť simuláciu</h2>
+    <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">
+      Konfigurácia: <strong id="simConfigName" style="color:var(--text)"></strong>
+    </p>
+    <input type="hidden" id="simConfigId" />
+    <div class="form-group">
+      <label>Trvanie simulácie [s]</label>
+      <input type="number" id="simDuration" value="10.0" min="0.1" max="60" step="0.5" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeSimModal()">Zrušiť</button>
+      <button class="btn btn-success" onclick="startSimulation()">▶ Spustiť simuláciu</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h2>Upraviť konfiguráciu</h2>
+    <div class="form-group"><label>Názov *</label><input type="text" id="eName" /></div>
+    <div class="form-group"><label>Popis</label><textarea id="eDesc"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Hmotnosť [kg]</label><input type="number" id="eMass" step="0.1" /></div>
+      <div class="form-group"><label>Tuhost [N/m]</label><input type="number" id="eStiffness" step="1" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Tlmenie [kg/s]</label><input type="number" id="eDamping" step="0.1" /></div>
+      <div class="form-group"><label>Výchylka [m]</label><input type="number" id="eDisplacement" step="0.1" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Časový krok [s]</label><input type="number" id="eTimeStep" step="0.001" /></div>
+      <div class="form-group">
+        <label>Metóda</label>
+        <select id="eMethod">
+          <option value="runge_kutta_4">Runge-Kutta 4</option>
+          <option value="runge_kutta_2">Runge-Kutta 2</option>
+          <option value="euler">Euler</option>
+          <option value="analytical">Analytická</option>
+        </select>
+      </div>
+    </div>
+    <input type="hidden" id="eId" />
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeEditModal()">Zrušiť</button>
+      <button class="btn btn-primary" onclick="submitEdit()">Uložiť zmeny</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const API = 'http://localhost:8081';
+let allConfigs = [];
+
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function dampingLabel(t) {
+  return { undamped:'Netlmený', underdamped:'Podtlmený', critical:'Kritický', overdamped:'Pretlmený' }[t] || t;
+}
+
+function methodLabel(m) {
+  return { runge_kutta_4:'RK4', runge_kutta_2:'RK2', euler:'Euler', analytical:'Analytická' }[m] || m;
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('sk-SK', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+// ── API status ────────────────────────────────────────────────────────────────
+async function checkApiStatus() {
+  try {
+    const r = await fetch(`${API}/api/info`, { signal: AbortSignal.timeout(3000) });
+    const ok = r.ok;
+    document.getElementById('apiDot').classList.toggle('off', !ok);
+    document.getElementById('apiStatus').textContent = ok ? 'API dostupné' : 'API chyba';
+  } catch {
+    document.getElementById('apiDot').classList.add('off');
+    document.getElementById('apiStatus').textContent = 'API nedostupné';
+  }
+}
+
+// ── Load configs ──────────────────────────────────────────────────────────────
+async function loadConfigs() {
+  const damping = document.getElementById('filterDamping').value;
+  const method  = document.getElementById('filterMethod').value;
+  const params  = new URLSearchParams();
+  if (damping) params.set('damping_type', damping);
+  if (method)  params.set('method', method);
+  const url = `${API}/api/spring/configurations${params.toString() ? '?' + params : ''}`;
+
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    // Backend vracia pole priamo, nie obalené v objekte
+    allConfigs = Array.isArray(data) ? data : (data.configurations || []);
+    renderConfigs(allConfigs);
+    updateHistoryFilter(allConfigs);
+  } catch {
+    document.getElementById('configList').innerHTML =
+      '<div class="empty"><div class="empty-icon">⚠️</div><p>Nepodarilo sa načítať konfigurácie</p></div>';
+  }
+}
+
+function renderConfigs(configs) {
+  const sort = document.getElementById('sortBy').value;
+  const sorted = [...configs];
+  if (sort === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name));
+  else sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const list = document.getElementById('configList');
+  if (!sorted.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>Žiadne konfigurácie. Vytvorte prvú pomocou formulára.</p></div>';
+    return;
+  }
+
+  list.innerHTML = sorted.map(c => {
+    // Backend vracia flat polia — žiadne vnorené parameters/characteristics
+    const dt = c.damping_type || 'unknown';
+    return `
+    <div class="config-card">
+      <div class="config-card-header">
+        <div>
+          <div class="config-name">${escHtml(c.name)}</div>
+          ${c.description ? `<div class="config-desc">${escHtml(c.description)}</div>` : ''}
+        </div>
+        <span class="damping-badge damping-${dt}">${dampingLabel(dt)}</span>
+      </div>
+      <div class="config-params">
+        <div class="param-box"><div class="pval">${c.mass ?? '—'}</div><div class="plbl">m [kg]</div></div>
+        <div class="param-box"><div class="pval">${c.stiffness ?? '—'}</div><div class="plbl">k [N/m]</div></div>
+        <div class="param-box"><div class="pval">${c.damping ?? '—'}</div><div class="plbl">c [kg/s]</div></div>
+        <div class="param-box"><div class="pval">${c.initial_displacement ?? '—'}</div><div class="plbl">x₀ [m]</div></div>
+      </div>
+      <div class="config-meta">
+        <span class="meta-text">T = ${c.period ? c.period.toFixed(3) : '—'} s</span>
+        <span class="meta-text">f = ${c.frequency ? c.frequency.toFixed(3) : '—'} Hz</span>
+        <span class="meta-text">${methodLabel(c.numerical_method)}</span>
+        <span class="meta-text">${formatDate(c.created_at)}</span>
+      </div>
+      <div class="config-actions">
+        <button class="btn btn-success btn-sm" onclick="openSimModal('${escHtml(c.id)}','${escHtml(c.name)}')">▶ Spustiť</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditModal('${escHtml(c.id)}')">✏ Upraviť</button>
+        <button class="btn btn-ghost btn-sm" onclick="duplicateConfig('${escHtml(c.id)}')">⧉ Duplikovať</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteConfig('${escHtml(c.id)}','${escHtml(c.name)}')">✕ Zmazať</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Save config ───────────────────────────────────────────────────────────────
+async function saveConfig() {
+  const body = {
+    name: document.getElementById('fName').value.trim(),
+    description: document.getElementById('fDesc').value.trim(),
+    mass: parseFloat(document.getElementById('fMass').value),
+    stiffness: parseFloat(document.getElementById('fStiffness').value),
+    damping: parseFloat(document.getElementById('fDamping').value),
+    initial_displacement: parseFloat(document.getElementById('fDisplacement').value),
+    time_step: parseFloat(document.getElementById('fTimeStep').value),
+    numerical_method: document.getElementById('fMethod').value,
+  };
+  if (!body.name) { toast('Zadajte názov konfigurácie', 'error'); return; }
+
+  try {
+    const r = await fetch(`${API}/api/spring/configurations`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.message || data.detail || 'Chyba pri ukladaní', 'error'); return; }
+
+    showCharacteristics(data);
+    toast('Konfigurácia uložená!', 'success');
+    loadConfigs();
+    resetForm();
+  } catch { toast('Nepodarilo sa pripojiť k API', 'error'); }
+}
+
+function showCharacteristics(data) {
+  // Backend vracia flat polia priamo v response objekte (nie vnorené v "characteristics")
+  const ch = data.characteristics || data;
+  document.getElementById('charBox').classList.add('visible');
+  document.getElementById('cPeriod').textContent = ch.period !== undefined ? Number(ch.period).toFixed(4) : '—';
+  document.getElementById('cFreq').textContent   = ch.frequency !== undefined ? Number(ch.frequency).toFixed(4) : '—';
+  document.getElementById('cOmega').textContent  = ch.natural_frequency !== undefined ? Number(ch.natural_frequency).toFixed(4) : '—';
+  document.getElementById('cZeta').textContent   = ch.damping_ratio !== undefined ? Number(ch.damping_ratio).toFixed(4) : '—';
+  const dt = ch.damping_type || '';
+  document.getElementById('cDampingBadge').innerHTML = dt
+    ? `<span class="damping-badge damping-${dt}">${dampingLabel(dt)}</span>` : '';
+}
+
+function resetForm() {
+  ['fName','fDesc'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fMass').value = '1.0';
+  document.getElementById('fStiffness').value = '10.0';
+  document.getElementById('fDamping').value = '0.5';
+  document.getElementById('fDisplacement').value = '0.5';
+  document.getElementById('fTimeStep').value = '0.01';
+  document.getElementById('fMethod').value = 'runge_kutta_4';
+  document.getElementById('charBox').classList.remove('visible');
+}
+
+function cancelEdit() {
+  resetForm();
+  document.getElementById('formTitle').textContent = 'Nová konfigurácia';
+  document.getElementById('saveBtnText').textContent = 'Uložiť konfiguráciu';
+  document.getElementById('cancelBtn').style.display = 'none';
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+async function deleteConfig(id, name) {
+  if (!confirm(`Naozaj zmazať konfiguráciu "${name}"?`)) return;
+  try {
+    const r = await fetch(`${API}/api/spring/configurations/${id}`, { method: 'DELETE' });
+    const data = await r.json();
+    if (!r.ok) { toast(data.message || 'Chyba pri mazaní', 'error'); return; }
+    toast('Konfigurácia zmazaná', 'success');
+    loadConfigs();
+  } catch { toast('Chyba pripojenia', 'error'); }
+}
+
+// ── Edit modal ────────────────────────────────────────────────────────────────
+async function openEditModal(id) {
+  try {
+    const r = await fetch(`${API}/api/spring/configurations/${id}`);
+    if (!r.ok) throw new Error();
+    const c = await r.json();
+    // Flat response — polia sú priamo na objekte
+    document.getElementById('eId').value = id;
+    document.getElementById('eName').value = c.name || '';
+    document.getElementById('eDesc').value = c.description || '';
+    document.getElementById('eMass').value = c.mass ?? 1;
+    document.getElementById('eStiffness').value = c.stiffness ?? 10;
+    document.getElementById('eDamping').value = c.damping ?? 0.5;
+    document.getElementById('eDisplacement').value = c.initial_displacement ?? 0.5;
+    document.getElementById('eTimeStep').value = c.time_step ?? 0.01;
+    document.getElementById('eMethod').value = c.numerical_method || 'runge_kutta_4';
+    document.getElementById('editModal').classList.add('open');
+  } catch { toast('Nepodarilo sa načítať konfiguráciu', 'error'); }
+}
+
+function closeEditModal() { document.getElementById('editModal').classList.remove('open'); }
+
+async function submitEdit() {
+  const id = document.getElementById('eId').value;
+  const body = {
+    name: document.getElementById('eName').value.trim(),
+    description: document.getElementById('eDesc').value.trim(),
+    mass: parseFloat(document.getElementById('eMass').value),
+    stiffness: parseFloat(document.getElementById('eStiffness').value),
+    damping: parseFloat(document.getElementById('eDamping').value),
+    initial_displacement: parseFloat(document.getElementById('eDisplacement').value),
+    time_step: parseFloat(document.getElementById('eTimeStep').value),
+    numerical_method: document.getElementById('eMethod').value,
+  };
+  if (!body.name) { toast('Zadajte názov', 'error'); return; }
+  try {
+    const r = await fetch(`${API}/api/spring/configurations/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.message || 'Chyba', 'error'); return; }
+    toast('Konfigurácia aktualizovaná', 'success');
+    closeEditModal();
+    loadConfigs();
+  } catch { toast('Chyba pripojenia', 'error'); }
+}
+
+// ── Duplicate ─────────────────────────────────────────────────────────────────
+async function duplicateConfig(id) {
+  try {
+    const r = await fetch(`${API}/api/spring/configurations/${id}`);
+    if (!r.ok) throw new Error();
+    const c = await r.json();
+    document.getElementById('fName').value = c.name + ' (kópia)';
+    document.getElementById('fDesc').value = c.description || '';
+    document.getElementById('fMass').value = c.mass ?? 1;
+    document.getElementById('fStiffness').value = c.stiffness ?? 10;
+    document.getElementById('fDamping').value = c.damping ?? 0.5;
+    document.getElementById('fDisplacement').value = c.initial_displacement ?? 0.5;
+    document.getElementById('fTimeStep').value = c.time_step ?? 0.01;
+    document.getElementById('fMethod').value = c.numerical_method || 'runge_kutta_4';
+    document.getElementById('charBox').classList.remove('visible');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast('Konfigurácia skopírovaná do formulára', 'info');
+  } catch { toast('Chyba', 'error'); }
+}
+
+// ── Sim modal ─────────────────────────────────────────────────────────────────
+function openSimModal(configId, configName) {
+  document.getElementById('simConfigId').value = configId;
+  document.getElementById('simConfigName').textContent = configName;
+  document.getElementById('simDuration').value = '10.0';
+  document.getElementById('simModal').classList.add('open');
+}
+
+function closeSimModal() { document.getElementById('simModal').classList.remove('open'); }
+
+async function startSimulation() {
+  const configId = document.getElementById('simConfigId').value;
+  const duration = parseFloat(document.getElementById('simDuration').value);
+  if (!duration || duration <= 0 || duration > 60) { toast('Trvanie musí byť medzi 0.1 a 60 sekúnd', 'error'); return; }
+
+  try {
+    const r = await fetch(`${API}/api/spring/simulations/start`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config_id: configId, duration })
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.message || 'Chyba spustenia', 'error'); return; }
+
+    closeSimModal();
+    toast('Simulácia spustená, presmerovávam...', 'success');
+    // Backend vracia id (nie simulation_id)
+    setTimeout(() => {
+      window.location.href = `../simulator/index.html?sim_id=${encodeURIComponent(data.id)}`;
+    }, 600);
+  } catch { toast('Chyba pripojenia k API', 'error'); }
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+function updateHistoryFilter(configs) {
+  const sel = document.getElementById('historyFilter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Všetky konfigurácie</option>' +
+    configs.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+async function loadHistory() {
+  const configId = document.getElementById('historyFilter').value;
+  let url = `${API}/api/spring/simulations?limit=30`;
+  if (configId) url += `&config_id=${encodeURIComponent(configId)}`;
+
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    // Backend vracia pole priamo
+    renderHistory(Array.isArray(data) ? data : (data.simulations || []));
+  } catch {
+    document.getElementById('historyContainer').innerHTML =
+      '<div class="empty"><p>Nepodarilo sa načítať históriu</p></div>';
+  }
+}
+
+function renderHistory(sims) {
+  const c = document.getElementById('historyContainer');
+  if (!sims.length) {
+    c.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><p>Zatiaľ žiadne simulácie</p></div>';
+    return;
+  }
+  c.innerHTML = `<table class="history-table">
+    <thead><tr>
+      <th>ID simulácie</th><th>Konfigurácia</th><th>Stav</th>
+      <th>Trvanie</th><th>Kroky</th><th>Konc. výchylka</th><th>Spustená</th>
+    </tr></thead>
+    <tbody>${sims.map(s => `<tr>
+      <td style="font-family:monospace;font-size:0.78rem;color:var(--text-muted)">${escHtml(s.id)}</td>
+      <td>${escHtml(s.config_id || '—')}</td>
+      <td><span class="status-badge status-${s.status}">${s.status}</span></td>
+      <td>${s.duration != null ? s.duration + ' s' : '—'}</td>
+      <td>${s.total_steps ?? '—'}</td>
+      <td>${s.final_displacement != null ? Number(s.final_displacement).toFixed(4) + ' m' : '—'}</td>
+      <td>${formatDate(s.started_at)}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+checkApiStatus();
+loadConfigs();
+loadHistory();
+setInterval(checkApiStatus, 30000);
+
+document.getElementById('simModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSimModal(); });
+document.getElementById('editModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
+</script>
+</body>
+</html>
