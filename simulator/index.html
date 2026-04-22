@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulátor pružiny — Vizualizácia</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222636;
+      --border: #2e3347;
+      --accent: #4f7cff;
+      --danger: #e05c5c;
+      --success: #3ecf8e;
+      --warning: #f5a623;
+      --text: #e8eaf0;
+      --text-muted: #7a8099;
+      --radius: 10px;
+      --font: 'Segoe UI', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); height: 100vh; display: flex; flex-direction: column; }
+
+    /* HEADER */
+    header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+    }
+    .header-back { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 4px; }
+    .header-back:hover { color: var(--text); }
+    .header-title { font-size: 1rem; font-weight: 600; }
+    .header-sub { font-size: 0.8rem; color: var(--text-muted); }
+    .header-controls { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .ws-indicator { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-muted); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+    .dot.connecting { background: var(--warning); animation: pulse 1s infinite; }
+    .dot.running   { background: var(--success); }
+    .dot.completed { background: var(--accent); }
+    .dot.error     { background: var(--danger); }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 8px 16px; border-radius: 6px; border: none;
+      font-size: 0.85rem; font-weight: 500; cursor: pointer;
+      font-family: var(--font); transition: background 0.15s;
+    }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-danger:hover  { background: #c94a4a; }
+    .btn-ghost   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover   { background: var(--border); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* MAIN LAYOUT */
+    .main { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; gap: 0; overflow: hidden; }
+
+    /* LEFT PANEL */
+    .left-panel {
+      background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow-y: auto; min-height: 0;
+    }
+
+    /* CANVAS */
+    .canvas-wrap {
+      padding: 16px; border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+    }
+    canvas#springCanvas {
+      background: var(--bg); border-radius: 8px; border: 1px solid var(--border);
+      width: 100%; max-width: 280px;
+    }
+
+    /* LIVE VALUES */
+    .live-values { padding: 16px; }
+    .live-values h3 { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
+    .value-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .value-card { background: var(--surface2); border-radius: 8px; padding: 10px 12px; }
+    .value-card .vc-val { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .value-card .vc-lbl { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+    .vc-time   { color: var(--text); }
+    .vc-disp   { color: #6e95ff; }
+    .vc-vel    { color: #f7bb55; }
+    .vc-acc    { color: #e87a7a; }
+    .vc-ke     { color: var(--success); }
+    .vc-pe     { color: #b06edf; }
+    .vc-te     { color: var(--accent); }
+
+    .energy-grid { grid-column: 1/-1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 4px; }
+
+    /* SIM INFO */
+    .sim-info { padding: 16px; border-top: 1px solid var(--border); }
+    .sim-info h3 { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+    .info-row { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 4px 0; border-bottom: 1px solid var(--border); }
+    .info-row:last-child { border-bottom: none; }
+    .info-row span:last-child { color: var(--accent); font-weight: 500; }
+    .damping-badge { display: inline-block; padding: 1px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+    .damping-underdamped { background: rgba(79,124,255,0.15); color: #6e95ff; }
+    .damping-overdamped  { background: rgba(224,92,92,0.15);  color: #e87a7a; }
+    .damping-critical    { background: rgba(245,166,35,0.15);  color: #f7bb55; }
+    .damping-undamped    { background: rgba(62,207,142,0.15);  color: #5de0a3; }
+
+    /* RIGHT PANEL — CHARTS */
+    .right-panel { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1px; background: var(--border); overflow: hidden; min-height: 0; }
+    .chart-box { background: var(--bg); padding: 10px 14px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+    .chart-box h4 { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; flex-shrink: 0; }
+    .chart-box canvas { flex: 1; min-height: 0; max-height: 100%; }
+
+    /* COMPLETED OVERLAY */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      display: none; align-items: center; justify-content: center; z-index: 50;
+    }
+    .overlay.show { display: flex; }
+    .overlay-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 32px; width: 400px; max-width: 95vw; text-align: center;
+    }
+    .overlay-box h2 { margin-bottom: 16px; font-size: 1.2rem; }
+    .overlay-box p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px; }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+    .result-item { background: var(--surface2); border-radius: 8px; padding: 12px; }
+    .result-item .rv { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+    .result-item .rl { font-size: 0.75rem; color: var(--text-muted); }
+    .overlay-actions { display: flex; gap: 10px; justify-content: center; margin-top: 8px; }
+
+    /* ERROR STATE */
+    .error-screen {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; text-align: center; gap: 12px;
+    }
+    .error-screen.show { display: flex; }
+    .error-screen h2 { font-size: 1.1rem; }
+    .error-screen p { color: var(--text-muted); font-size: 0.9rem; max-width: 360px; }
+
+    /* PROGRESS BAR */
+    .progress-bar-wrap { height: 3px; background: var(--border); flex-shrink: 0; }
+    .progress-bar { height: 3px; background: var(--accent); width: 0%; transition: width 0.1s linear; }
+
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .left-panel { border-right: none; border-bottom: 1px solid var(--border); max-height: 420px; }
+      .right-panel { grid-template-columns: 1fr; grid-template-rows: repeat(4, 200px); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="../frontend/index.html" class="header-back">← Späť</a>
+  <div>
+    <div class="header-title" id="headerTitle">Načítavam simuláciu...</div>
+    <div class="header-sub" id="headerSub"></div>
+  </div>
+  <div class="header-controls">
+    <div class="ws-indicator">
+      <div class="dot connecting" id="wsDot"></div>
+      <span id="wsStatus">Pripájam...</span>
+    </div>
+    <button class="btn btn-danger" id="btnStop" onclick="stopSimulation()" disabled>■ Stop</button>
+    <button class="btn btn-ghost" onclick="goBack()">↩ Reset</button>
+  </div>
+</header>
+
+<div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+<div class="main" id="mainContent">
+  <!-- LEFT -->
+  <div class="left-panel">
+    <div class="canvas-wrap">
+      <canvas id="springCanvas" width="280" height="360"></canvas>
+    </div>
+
+    <div class="live-values">
+      <h3>Aktuálne hodnoty</h3>
+      <div class="value-grid">
+        <div class="value-card"><div class="vc-val vc-time" id="vTime">0.000</div><div class="vc-lbl">Čas [s]</div></div>
+        <div class="value-card"><div class="vc-val vc-disp" id="vDisp">0.0000</div><div class="vc-lbl">Výchylka [m]</div></div>
+        <div class="value-card"><div class="vc-val vc-vel" id="vVel">0.0000</div><div class="vc-lbl">Rýchlosť [m/s]</div></div>
+        <div class="value-card"><div class="vc-val vc-acc" id="vAcc">0.0000</div><div class="vc-lbl">Zrýchlenie [m/s²]</div></div>
+      </div>
+      <div class="energy-grid">
+        <div class="value-card"><div class="vc-val vc-ke" id="vKE">0.0000</div><div class="vc-lbl">E_k [J]</div></div>
+        <div class="value-card"><div class="vc-val vc-pe" id="vPE">0.0000</div><div class="vc-lbl">E_p [J]</div></div>
+        <div class="value-card"><div class="vc-val vc-te" id="vTE">0.0000</div><div class="vc-lbl">E [J]</div></div>
+      </div>
+    </div>
+
+    <div class="sim-info" id="simInfoBox" style="display:none;">
+      <h3>Parametre systému</h3>
+      <div id="simInfoRows"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: CHARTS -->
+  <div class="right-panel">
+    <div class="chart-box">
+      <h4>Výchylka v čase</h4>
+      <canvas id="chartDisp"></canvas>
+    </div>
+    <div class="chart-box">
+      <h4>Rýchlosť v čase</h4>
+      <canvas id="chartVel"></canvas>
+    </div>
+    <div class="chart-box">
+      <h4>Fázový diagram (x vs v)</h4>
+      <canvas id="chartPhase"></canvas>
+    </div>
+    <div class="chart-box">
+      <h4>Energia v čase</h4>
+      <canvas id="chartEnergy"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ERROR SCREEN -->
+<div class="error-screen" id="errorScreen">
+  <div style="font-size:3rem;">⚠️</div>
+  <h2 id="errorTitle">Chyba</h2>
+  <p id="errorMsg"></p>
+  <button class="btn btn-ghost" onclick="goBack()">← Späť na konfigurácie</button>
+</div>
+
+<!-- COMPLETED OVERLAY -->
+<div class="overlay" id="completedOverlay">
+  <div class="overlay-box">
+    <div style="font-size:2.5rem; margin-bottom:12px;">✓</div>
+    <h2>Simulácia dokončená</h2>
+    <div class="result-grid">
+      <div class="result-item"><div class="rv" id="rTime">—</div><div class="rl">Celkový čas [s]</div></div>
+      <div class="result-item"><div class="rv" id="rSteps">—</div><div class="rl">Počet krokov</div></div>
+      <div class="result-item"><div class="rv" id="rDisp">—</div><div class="rl">Konc. výchylka [m]</div></div>
+      <div class="result-item"><div class="rv" id="rVel">—</div><div class="rl">Konc. rýchlosť [m/s]</div></div>
+    </div>
+    <div class="overlay-actions">
+      <button class="btn btn-ghost" onclick="closeOverlay()">Zobraziť grafy</button>
+      <button class="btn btn-ghost" onclick="goBack()">← Späť na konfigurácie</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8081';
+const WS_HOST = 'localhost:9001';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let ws = null;
+let simId = null;
+let duration = 10;
+let setupData = null;
+let springColor = '#4f7cff';
+let frameCount = 0;
+const CHART_EVERY = 3; // update grafy každý 3. frame (~7 FPS) namiesto 20 FPS
+
+// Chart data buffers (max 500 points for performance)
+const MAX_PTS = 500;
+const bufTime = [], bufDisp = [], bufVel = [], bufAcc = [];
+const bufKE = [], bufPE = [], bufTE = [];
+
+// ── Canvas ────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('springCanvas');
+const ctx = canvas.getContext('2d');
+const CW = canvas.width, CH = canvas.height;
+
+function drawSpring(displacement) {
+  ctx.clearRect(0, 0, CW, CH);
+
+  const coils = 10;
+  const fixY = 30;
+  const baseSpringH = 200;
+  const dispScale = 60;
+  const springH = baseSpringH + displacement * dispScale;
+  const massH = 40, massW = 60;
+  const cx = CW / 2;
+  const amplitude = 14;
+
+  // Ceiling
+  ctx.fillStyle = '#2e3347';
+  ctx.fillRect(cx - 40, fixY - 10, 80, 10);
+  ctx.fillStyle = '#4a5270';
+  ctx.fillRect(cx - 1, fixY, 2, 12);
+
+  // Spring
+  ctx.beginPath();
+  ctx.strokeStyle = springColor;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  for (let i = 0; i <= coils * 20; i++) {
+    const t = i / (coils * 20);
+    const y = fixY + 12 + t * springH;
+    const x = cx + amplitude * Math.sin(t * coils * 2 * Math.PI);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Equilibrium line
+  const eqY = fixY + 12 + baseSpringH + massH / 2;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = '#3a4060';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - 55, eqY);
+  ctx.lineTo(cx + 55, eqY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Mass
+  const massY = fixY + 12 + springH;
+  const grad = ctx.createLinearGradient(cx - massW/2, massY, cx + massW/2, massY + massH);
+  grad.addColorStop(0, '#2e3880');
+  grad.addColorStop(1, '#1a1d27');
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = springColor;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(cx - massW/2, massY, massW, massH, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  // Mass label
+  ctx.fillStyle = 'rgba(232,234,240,0.6)';
+  ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = 'center';
+  ctx.fillText(setupData ? `m = ${setupData.parameters.mass} kg` : 'm', cx, massY + massH/2 + 4);
+
+  // Displacement indicator
+  if (Math.abs(displacement) > 0.01) {
+    const arrowX = cx + massW/2 + 12;
+    ctx.strokeStyle = '#6e95ff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(arrowX, eqY);
+    ctx.lineTo(arrowX, massY + massH/2);
+    ctx.stroke();
+    const dir = displacement > 0 ? 1 : -1;
+    ctx.fillStyle = '#6e95ff';
+    ctx.beginPath();
+    ctx.moveTo(arrowX, massY + massH/2);
+    ctx.lineTo(arrowX - 4, massY + massH/2 - dir*8);
+    ctx.lineTo(arrowX + 4, massY + massH/2 - dir*8);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+drawSpring(0);
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+Chart.defaults.color = '#7a8099';
+Chart.defaults.borderColor = '#2e3347';
+
+const chartCfg = (label, color, xLabel, yLabel) => ({
+  type: 'line',
+  data: { datasets: [{ label, data: [], borderColor: color, borderWidth: 1.5, pointRadius: 0, tension: 0.1 }] },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { type: 'linear', title: { display: true, text: xLabel, font: { size: 10 } }, ticks: { font: { size: 9 } } },
+      y: { title: { display: true, text: yLabel, font: { size: 10 } }, ticks: { font: { size: 9 } } }
+    }
+  }
+});
+
+const chartDisp  = new Chart(document.getElementById('chartDisp'),  chartCfg('Výchylka', '#6e95ff', 't [s]', 'x [m]'));
+const chartVel   = new Chart(document.getElementById('chartVel'),   chartCfg('Rýchlosť', '#f7bb55', 't [s]', 'v [m/s]'));
+const chartPhase = new Chart(document.getElementById('chartPhase'), {
+  type: 'scatter',
+  data: { datasets: [{ label: 'Fáza', data: [], borderColor: '#3ecf8e', backgroundColor: 'rgba(62,207,142,0.15)', borderWidth: 1, pointRadius: 1 }] },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { title: { display: true, text: 'x [m]', font: { size: 10 } }, ticks: { font: { size: 9 } } },
+      y: { title: { display: true, text: 'v [m/s]', font: { size: 10 } }, ticks: { font: { size: 9 } } }
+    }
+  }
+});
+const chartEnergy = new Chart(document.getElementById('chartEnergy'), {
+  type: 'line',
+  data: {
+    datasets: [
+      { label: 'E_k', data: [], borderColor: '#3ecf8e', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+      { label: 'E_p', data: [], borderColor: '#b06edf', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+      { label: 'E',   data: [], borderColor: '#4f7cff', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: true, labels: { font: { size: 10 }, boxWidth: 12 } } },
+    scales: {
+      x: { type: 'linear', title: { display: true, text: 't [s]', font: { size: 10 } }, ticks: { font: { size: 9 } } },
+      y: { title: { display: true, text: 'E [J]', font: { size: 10 } }, ticks: { font: { size: 9 } } }
+    }
+  }
+});
+
+// ── Update UI ─────────────────────────────────────────────────────────────────
+function updateValues(d) {
+  document.getElementById('vTime').textContent = d.time.toFixed(3);
+  document.getElementById('vDisp').textContent = d.displacement.toFixed(4);
+  document.getElementById('vVel').textContent  = d.velocity.toFixed(4);
+  document.getElementById('vAcc').textContent  = d.acceleration.toFixed(4);
+  document.getElementById('vKE').textContent   = d.kinetic_energy.toFixed(4);
+  document.getElementById('vPE').textContent   = d.potential_energy.toFixed(4);
+  document.getElementById('vTE').textContent   = d.total_energy.toFixed(4);
+  document.getElementById('progressBar').style.width = Math.min(100, (d.time / duration) * 100) + '%';
+}
+
+function pushToCharts(d, doRender) {
+  // Data sa zbiera každý frame (50ms / 20 FPS podľa backendu)
+  // Render sa volá každý CHART_EVERY-ty frame aby sa znížilo CPU
+  if (bufTime.length >= MAX_PTS) {
+    const step = 2;
+    bufTime.splice(0, step); bufDisp.splice(0, step); bufVel.splice(0, step);
+    bufKE.splice(0, step); bufPE.splice(0, step); bufTE.splice(0, step);
+    chartPhase.data.datasets[0].data.splice(0, step);
+  }
+
+  bufTime.push(d.time); bufDisp.push(d.displacement); bufVel.push(d.velocity);
+  bufKE.push(d.kinetic_energy); bufPE.push(d.potential_energy); bufTE.push(d.total_energy);
+  chartPhase.data.datasets[0].data.push({ x: d.displacement, y: d.velocity });
+
+  if (!doRender) return;
+
+  chartDisp.data.datasets[0].data   = bufTime.map((t, i) => ({ x: t, y: bufDisp[i] }));
+  chartVel.data.datasets[0].data    = bufTime.map((t, i) => ({ x: t, y: bufVel[i] }));
+  chartEnergy.data.datasets[0].data = bufTime.map((t, i) => ({ x: t, y: bufKE[i] }));
+  chartEnergy.data.datasets[1].data = bufTime.map((t, i) => ({ x: t, y: bufPE[i] }));
+  chartEnergy.data.datasets[2].data = bufTime.map((t, i) => ({ x: t, y: bufTE[i] }));
+
+  chartDisp.update('none');
+  chartVel.update('none');
+  chartPhase.update('none');
+  chartEnergy.update('none');
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+function setWsStatus(state, text) {
+  const dot = document.getElementById('wsDot');
+  dot.className = 'dot ' + state;
+  document.getElementById('wsStatus').textContent = text;
+}
+
+function connectWS(id) {
+  const url = `ws://${WS_HOST}/ws/${id}`;
+  setWsStatus('connecting', 'Pripájam...');
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    setWsStatus('connecting', 'Čakám na dáta...');
+    document.getElementById('btnStop').disabled = false;
+  };
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+
+    switch (msg.type) {
+      case 'setup':
+        handleSetup(msg);
+        break;
+      case 'data':
+        setWsStatus('running', 'Beží...');
+        frameCount++;
+        updateValues(msg);
+        drawSpring(msg.displacement);
+        pushToCharts(msg, frameCount % CHART_EVERY === 0);
+        break;
+      case 'completed':
+        handleCompleted(msg);
+        break;
+      case 'error':
+        showError('Chyba simulácie', msg.message || 'Neznáma chyba');
+        ws.close();
+        break;
+    }
+  };
+
+  ws.onerror = () => {
+    showError('Chyba WebSocket pripojenia', `Nepodarilo sa pripojiť na ws://${WS_HOST}/ws/${id}`);
+  };
+
+  ws.onclose = () => {
+    document.getElementById('btnStop').disabled = true;
+  };
+}
+
+function handleSetup(msg) {
+  setupData = msg;
+  duration = msg.duration || 10;
+
+  const p  = msg.parameters || {};
+  const ch = msg.characteristics || {};
+
+  // Spring color based on damping type
+  const colorMap = { undamped: '#3ecf8e', underdamped: '#4f7cff', critical: '#f5a623', overdamped: '#e05c5c' };
+  springColor = colorMap[ch.damping_type] || '#4f7cff';
+
+  document.getElementById('headerTitle').textContent = `Simulácia: ${msg.simulation_id || msg.id || simId}`;
+  document.getElementById('headerSub').textContent =
+    `m=${p.mass}kg  k=${p.stiffness}N/m  c=${p.damping}kg/s  x₀=${p.initial_displacement}m  T=${duration}s`;
+
+  const dt = ch.damping_type || '';
+  const dlMap = { undamped:'Netlmený', underdamped:'Podtlmený', critical:'Kritický', overdamped:'Pretlmený' };
+  const rows = [
+    ['Hmotnosť', `${p.mass} kg`],
+    ['Tuhost', `${p.stiffness} N/m`],
+    ['Tlmenie', `${p.damping} kg/s`],
+    ['Výchylka₀', `${p.initial_displacement} m`],
+    ['Metóda', p.method || '—'],
+    ['Perióda', ch.period ? ch.period.toFixed(4) + ' s' : '—'],
+    ['Frekvencia', ch.frequency ? ch.frequency.toFixed(4) + ' Hz' : '—'],
+    ['ω₀', ch.natural_frequency ? ch.natural_frequency.toFixed(4) + ' rad/s' : '—'],
+    ['ζ', ch.damping_ratio !== undefined ? ch.damping_ratio.toFixed(4) : '—'],
+    ['Typ tlmenia', dt ? `<span class="damping-badge damping-${dt}">${dlMap[dt]||dt}</span>` : '—'],
+  ];
+
+  const box = document.getElementById('simInfoBox');
+  box.style.display = 'block';
+  document.getElementById('simInfoRows').innerHTML = rows.map(([l,v]) =>
+    `<div class="info-row"><span>${l}</span><span>${v}</span></div>`
+  ).join('');
+
+  drawSpring(p.initial_displacement || 0);
+}
+
+function handleCompleted(msg) {
+  setWsStatus('completed', 'Dokončená');
+  document.getElementById('btnStop').disabled = true;
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('progressBar').style.background = 'var(--success)';
+
+  document.getElementById('rTime').textContent  = msg.total_time != null ? msg.total_time.toFixed(3) + ' s' : '—';
+  document.getElementById('rSteps').textContent = msg.total_steps ?? '—';
+  document.getElementById('rDisp').textContent  = msg.final_displacement != null ? msg.final_displacement.toFixed(4) : '—';
+  document.getElementById('rVel').textContent   = msg.final_velocity != null ? msg.final_velocity.toFixed(4) : '—';
+
+  document.getElementById('completedOverlay').classList.add('show');
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+async function stopSimulation() {
+  if (!simId) return;
+  try {
+    await fetch(`${API}/api/spring/simulations/${simId}`, { method: 'DELETE' });
+  } catch {}
+  if (ws) ws.close();
+  setWsStatus('error', 'Zastavená');
+  document.getElementById('btnStop').disabled = true;
+}
+
+function goBack() { window.location.href = '../frontend/index.html'; }
+function closeOverlay() { document.getElementById('completedOverlay').classList.remove('show'); }
+
+function showError(title, msg) {
+  document.getElementById('mainContent').style.display = 'none';
+  document.getElementById('errorScreen').classList.add('show');
+  document.getElementById('errorTitle').textContent = title;
+  document.getElementById('errorMsg').textContent = msg;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+simId = params.get('sim_id');
+
+if (!simId) {
+  showError('Chýba ID simulácie', 'Spustite simuláciu zo stránky konfigurácií.');
+} else {
+  connectWS(simId);
+}
+</script>
+</body>
+</html>
