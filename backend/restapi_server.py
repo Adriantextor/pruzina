@@ -30,7 +30,7 @@ app.add_middleware(
 )
 
 WS_HOST = "localhost"
-WS_PORT = 9000
+WS_PORT = 9001
 
 
 @app.on_event("startup")
