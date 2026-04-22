@@ -6,8 +6,8 @@ services:
       context: ./backend
     container_name: spring_backend
     ports:
-      - "8080:8080"
-      - "9000:9000"
+      - "8081:8081"
+      - "9001:9001"
     volumes:
       - db_data:/app/data
     environment:

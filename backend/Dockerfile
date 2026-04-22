@@ -7,6 +7,6 @@ RUN pip install --no-cache-dir -e .
 
 COPY . .
 
-EXPOSE 8080 9000
+EXPOSE 8081 9001
 
 CMD ["python", "main.py"]
