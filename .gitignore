@@ -1,0 +1,14 @@
+# Mac
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Databáza (lokálna)
+*.db
+
+# VS Code (voliteľné - môžeš nechať ak chceš zdieľať settings)
+# .vscode/
