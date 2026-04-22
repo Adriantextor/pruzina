@@ -1,7 +1,7 @@
 from sqlalchemy import (
     create_engine, Column, String, Float, Integer, DateTime, Text, ForeignKey
 )
-from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from datetime import datetime
 import os
 
