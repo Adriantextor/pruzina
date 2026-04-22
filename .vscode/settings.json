@@ -1,0 +1,7 @@
+{
+    "flake8.args": [
+        "--max-line-length=160",
+        "--exclude=.git,__pycache__,.venv"
+    ],
+    "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python"
+}
