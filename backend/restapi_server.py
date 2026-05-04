@@ -40,7 +40,7 @@ def startup():
 
 # ── INFO ─────────────────────────────────────────────────────────────────────
 
-@app.get("/api/info")
+@app.get("/info")
 def get_info():
     return {
         "name": "Spring Simulator",
@@ -60,7 +60,7 @@ def get_info():
 
 # ── CONFIGURATIONS ────────────────────────────────────────────────────────────
 
-@app.post("/api/spring/configurations", response_model=ConfigurationResponse, status_code=201)
+@app.post("/spring/configurations", response_model=ConfigurationResponse, status_code=201)
 def create_configuration(data: ConfigurationCreate, db: Session = Depends(get_db)):
     chars = compute_characteristics(data.mass, data.stiffness, data.damping)
     config_id = f"conf_{uuid.uuid4().hex[:8]}"
@@ -89,7 +89,7 @@ def create_configuration(data: ConfigurationCreate, db: Session = Depends(get_db
     return db_config
 
 
-@app.get("/api/spring/configurations", response_model=list[ConfigurationResponse])
+@app.get("/spring/configurations", response_model=list[ConfigurationResponse])
 def list_configurations(
     damping_type: Optional[str] = Query(None),
     method: Optional[str] = Query(None),
@@ -103,7 +103,7 @@ def list_configurations(
     return query.order_by(ConfigurationDB.created_at.desc()).all()
 
 
-@app.get("/api/spring/configurations/{config_id}", response_model=ConfigurationResponse)
+@app.get("/spring/configurations/{config_id}", response_model=ConfigurationResponse)
 def get_configuration(config_id: str, db: Session = Depends(get_db)):
     config = db.query(ConfigurationDB).filter(ConfigurationDB.id == config_id).first()
     if not config:
@@ -111,7 +111,7 @@ def get_configuration(config_id: str, db: Session = Depends(get_db)):
     return config
 
 
-@app.put("/api/spring/configurations/{config_id}", response_model=ConfigurationResponse)
+@app.put("/spring/configurations/{config_id}", response_model=ConfigurationResponse)
 def update_configuration(config_id: str, data: ConfigurationUpdate, db: Session = Depends(get_db)):
     config = db.query(ConfigurationDB).filter(ConfigurationDB.id == config_id).first()
     if not config:
@@ -136,7 +136,7 @@ def update_configuration(config_id: str, data: ConfigurationUpdate, db: Session 
     return config
 
 
-@app.delete("/api/spring/configurations/{config_id}")
+@app.delete("/spring/configurations/{config_id}")
 def delete_configuration(config_id: str, db: Session = Depends(get_db)):
     config = db.query(ConfigurationDB).filter(ConfigurationDB.id == config_id).first()
     if not config:
@@ -154,13 +154,13 @@ def delete_configuration(config_id: str, db: Session = Depends(get_db)):
     return {"message": "Configuration deleted"}
 
 
-@app.post("/api/spring/configurations/validate")
+@app.post("/spring/configurations/validate")
 def validate_configuration(data: ConfigurationCreate):
     chars = compute_characteristics(data.mass, data.stiffness, data.damping)
     return {"valid": True, "characteristics": chars}
 
 
-@app.get("/api/spring/configurations/{config_id}/history", response_model=list[SimulationResponse])
+@app.get("/spring/configurations/{config_id}/history", response_model=list[SimulationResponse])
 def get_configuration_history(config_id: str, db: Session = Depends(get_db)):
     config = db.query(ConfigurationDB).filter(ConfigurationDB.id == config_id).first()
     if not config:
@@ -171,7 +171,7 @@ def get_configuration_history(config_id: str, db: Session = Depends(get_db)):
 
 # ── SIMULATIONS ───────────────────────────────────────────────────────────────
 
-@app.post("/api/spring/simulations/start", response_model=SimulationResponse)
+@app.post("/spring/simulations/start", response_model=SimulationResponse)
 def start_simulation(data: SimulationStart, db: Session = Depends(get_db)):
     config = db.query(ConfigurationDB).filter(ConfigurationDB.id == data.config_id).first()
     if not config:
@@ -196,7 +196,7 @@ def start_simulation(data: SimulationStart, db: Session = Depends(get_db)):
     return response
 
 
-@app.get("/api/spring/simulations", response_model=list[SimulationResponse])
+@app.get("/spring/simulations", response_model=list[SimulationResponse])
 def list_simulations(
     status: Optional[str] = Query(None),
     config_id: Optional[str] = Query(None),
@@ -211,7 +211,7 @@ def list_simulations(
     return query.order_by(SimulationDB.started_at.desc()).limit(limit).all()
 
 
-@app.get("/api/spring/simulations/{sim_id}", response_model=SimulationResponse)
+@app.get("/spring/simulations/{sim_id}", response_model=SimulationResponse)
 def get_simulation(sim_id: str, db: Session = Depends(get_db)):
     sim = db.query(SimulationDB).filter(SimulationDB.id == sim_id).first()
     if not sim:
@@ -219,7 +219,7 @@ def get_simulation(sim_id: str, db: Session = Depends(get_db)):
     return sim
 
 
-@app.delete("/api/spring/simulations/{sim_id}")
+@app.delete("/spring/simulations/{sim_id}")
 def stop_simulation(sim_id: str, db: Session = Depends(get_db)):
     sim = db.query(SimulationDB).filter(SimulationDB.id == sim_id).first()
     if not sim:
