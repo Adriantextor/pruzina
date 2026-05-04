@@ -242,8 +242,8 @@
 </div>
 
 <script>
-const API = 'http://localhost:8081';
-const WS_HOST = 'localhost:9001';
+const API = 'http://82.25.97.52/pruzina/api';
+const WS_HOST = '82.25.97.52';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let ws = null;
@@ -445,7 +445,7 @@ function setWsStatus(state, text) {
 }
 
 function connectWS(id) {
-  const url = `ws://${WS_HOST}/ws/${id}`;
+  const url = `ws://${WS_HOST}/pruzina/ws/${id}`;
   setWsStatus('connecting', 'Pripájam...');
   ws = new WebSocket(url);
 
@@ -544,7 +544,7 @@ function handleCompleted(msg) {
 async function stopSimulation() {
   if (!simId) return;
   try {
-    await fetch(`${API}/api/spring/simulations/${simId}`, { method: 'DELETE' });
+    await fetch(`${API}/spring/simulations/${simId}`, { method: 'DELETE' });
   } catch {}
   if (ws) ws.close();
   setWsStatus('error', 'Zastavená');
