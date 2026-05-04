@@ -445,7 +445,7 @@ function setWsStatus(state, text) {
 }
 
 function connectWS(id) {
-  const url = `${WS_BASE}/${id}`;
+  const url = `${WS_BASE}/?sim_id=${encodeURIComponent(id)}`;
   setWsStatus('connecting', 'Pripájam...');
   ws = new WebSocket(url);
 

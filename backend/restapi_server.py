@@ -29,7 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-WS_PUBLIC_BASE = "/pruzina/ws"
+WS_HOST = "localhost"
 WS_PORT = 9001
 
 
@@ -192,7 +192,7 @@ def start_simulation(data: SimulationStart, db: Session = Depends(get_db)):
     db.refresh(db_sim)
 
     response = SimulationResponse.model_validate(db_sim)
-    response.websocket_url = f"{WS_PUBLIC_BASE}/{sim_id}"
+    response.websocket_url = f"ws://{WS_HOST}:{WS_PORT}/ws/{sim_id}"
     return response
 
 
