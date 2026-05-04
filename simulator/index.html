@@ -242,8 +242,8 @@
 </div>
 
 <script>
-const API = 'http://82.25.97.52/pruzina/api';
-const WS_HOST = '82.25.97.52';
+const API = '/pruzina/api';
+const WS_BASE = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/pruzina/ws`;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let ws = null;
@@ -445,7 +445,7 @@ function setWsStatus(state, text) {
 }
 
 function connectWS(id) {
-  const url = `ws://${WS_HOST}/pruzina/ws/${id}`;
+  const url = `${WS_BASE}/${id}`;
   setWsStatus('connecting', 'Pripájam...');
   ws = new WebSocket(url);
 
@@ -479,7 +479,7 @@ function connectWS(id) {
   };
 
   ws.onerror = () => {
-    showError('Chyba WebSocket pripojenia', `Nepodarilo sa pripojiť na ws://${WS_HOST}/ws/${id}`);
+    showError('Chyba WebSocket pripojenia', `Nepodarilo sa pripojiť na ${url}`);
   };
 
   ws.onclose = () => {

@@ -129,13 +129,24 @@ async def handle_simulation(websocket, simulation_id: str):
 
 async def ws_handler(websocket):
     path = websocket.request.path if hasattr(websocket, "request") else websocket.path
-    parts = path.strip("/").split("/")
-    # Expected path: /ws/{simulation_id}
-    if len(parts) == 2 and parts[0] == "ws":
-        simulation_id = parts[1]
+    parts = [p for p in path.strip("/").split("/") if p]
+
+    # The application may run directly or behind nginx.
+    # Accepted examples:
+    #   /ws/{simulation_id}
+    #   /pruzina/ws/{simulation_id}
+    #   /pruzina/ws/ws/{simulation_id}
+    #   /{simulation_id}
+    simulation_id = parts[-1] if parts and parts[-1].startswith("sim_") else None
+
+    if simulation_id:
         await handle_simulation(websocket, simulation_id)
     else:
-        await websocket.send(json.dumps({"type": "error", "message": "Invalid path", "code": 400}))
+        await websocket.send(json.dumps({
+            "type": "error",
+            "message": f"Invalid path: {path}",
+            "code": 400,
+        }))
 
 
 async def start_websocket_server():

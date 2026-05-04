@@ -27,7 +27,7 @@ REST API:   /api/spring/...
 WebSocket:  /ws/{simulation_id}
 ```
 
-Všetko beží na jednom porte `8000` — FastAPI natívny WebSocket, žiadny samostatný WebSocket server.
+Všetko beží na jednom porte `8081` — FastAPI natívny WebSocket, žiadny samostatný WebSocket server.
 
 ---
 
