@@ -445,12 +445,13 @@ function setWsStatus(state, text) {
 }
 
 function connectWS(id) {
-  const url = `${WS_BASE}/?sim_id=${encodeURIComponent(id)}`;
+  const url = `${WS_BASE}/`;
   setWsStatus('connecting', 'Pripájam...');
   ws = new WebSocket(url);
 
   ws.onopen = () => {
     setWsStatus('connecting', 'Čakám na dáta...');
+    ws.send(JSON.stringify({ type: 'init', simulation_id: id }));
     document.getElementById('btnStop').disabled = false;
   };
 

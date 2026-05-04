@@ -129,27 +129,54 @@ async def handle_simulation(websocket, simulation_id: str):
         db.close()
 
 
+async def _extract_simulation_id_from_first_message(websocket, timeout: float = 8.0):
+    """Fallback for nginx setups that rewrite the WebSocket path to '/'.
+
+    The browser sends the simulation id as the first WebSocket message:
+        {"type": "init", "simulation_id": "sim_xxxxx"}
+    """
+    try:
+        raw = await asyncio.wait_for(websocket.recv(), timeout=timeout)
+    except asyncio.TimeoutError:
+        return None
+    except websockets.exceptions.ConnectionClosed:
+        return None
+    except Exception:
+        return None
+
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return data.get("simulation_id") or data.get("sim_id") or data.get("id")
+    except Exception:
+        pass
+
+    if isinstance(raw, str):
+        match = re.search(r"sim_[A-Za-z0-9_-]+", raw)
+        if match:
+            return match.group(0)
+
+    return None
+
+
 async def ws_handler(websocket):
     """Handle WebSocket connections behind direct access or nginx proxy.
 
-    Nginx on the server may rewrite /pruzina/ws/... to /, so the
-    simulation id is accepted either in the path or in the query string:
-      /ws/sim_xxxxx
-      /sim_xxxxx
-      /pruzina/ws/sim_xxxxx
-      /pruzina/ws/ws/sim_xxxxx
-      /?sim_id=sim_xxxxx
+    On this server nginx rewrites /pruzina/ws/... to '/', so path and query
+    may be lost. Therefore the simulation id is accepted from:
+      1. WebSocket path, e.g. /ws/sim_xxxxx
+      2. query string, e.g. /?sim_id=sim_xxxxx
+      3. the first WebSocket message, e.g.
+         {"type": "init", "simulation_id": "sim_xxxxx"}
     """
     raw_path = "/"
     query_string = ""
 
     try:
         if hasattr(websocket, "request"):
-            # websockets >= 13
             raw_path = getattr(websocket.request, "path", "/") or "/"
             query_string = getattr(websocket.request, "query", "") or ""
         else:
-            # websockets <= 12: websocket.path may contain query string too
             raw_path = getattr(websocket, "path", "/") or "/"
     except Exception:
         raw_path = "/"
@@ -163,24 +190,29 @@ async def ws_handler(websocket):
 
     simulation_id = None
 
-    # 1) Prefer a sim_... id anywhere in the path.
+    # 1) Try to find sim_... directly in the path.
     match = re.search(r"sim_[A-Za-z0-9_-]+", path)
     if match:
         simulation_id = match.group(0)
 
-    # 2) If nginx rewrites the path to '/', use query parameter sim_id.
+    # 2) Try query parameters.
     if not simulation_id:
         qs = parse_qs(query_string)
-        values = qs.get("sim_id") or qs.get("id") or []
+        values = qs.get("sim_id") or qs.get("simulation_id") or qs.get("id") or []
         if values:
             simulation_id = values[0]
+
+    # 3) If nginx rewrote everything to '/', wait for the first client message.
+    if not simulation_id:
+        simulation_id = await _extract_simulation_id_from_first_message(websocket)
+        print(f"WebSocket simulation_id from first message: {simulation_id}")
 
     if simulation_id:
         await handle_simulation(websocket, simulation_id)
     else:
         await websocket.send(json.dumps({
             "type": "error",
-            "message": f"Invalid path: {path}" + (f"?{query_string}" if query_string else ""),
+            "message": f"Invalid path: {path}" + (f"?{query_string}" if query_string else "") + " and no simulation_id init message",
             "code": 400,
         }))
 
