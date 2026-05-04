@@ -138,20 +138,30 @@ def update_configuration(config_id: str, data: ConfigurationUpdate, db: Session 
 
 @app.delete("/spring/configurations/{config_id}")
 def delete_configuration(config_id: str, db: Session = Depends(get_db)):
+    """Delete a configuration together with its simulations.
+
+    The original version returned HTTP 409 when a configuration had a running
+    simulation. In the deployed UI this made the red "Zmazať" button fail.
+    For this educational app it is more practical to cascade-delete related
+    simulation records as well, so the configuration can always be removed.
+    """
     config = db.query(ConfigurationDB).filter(ConfigurationDB.id == config_id).first()
     if not config:
         raise HTTPException(status_code=404, detail="Configuration not found")
 
-    active = db.query(SimulationDB).filter(
-        SimulationDB.config_id == config_id,
-        SimulationDB.status == "running"
-    ).first()
-    if active:
-        raise HTTPException(status_code=409, detail="Cannot delete configuration with active simulation")
+    related_sims = db.query(SimulationDB).filter(SimulationDB.config_id == config_id).all()
+    deleted_simulations = len(related_sims)
+
+    for sim in related_sims:
+        db.delete(sim)
 
     db.delete(config)
     db.commit()
-    return {"message": "Configuration deleted"}
+
+    return {
+        "message": "Configuration deleted",
+        "deleted_simulations": deleted_simulations,
+    }
 
 
 @app.post("/spring/configurations/validate")
